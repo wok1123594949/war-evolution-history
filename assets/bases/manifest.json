@@ -1,0 +1,84 @@
+{
+  "atlas": "bases-atlas.png",
+  "atlasSize": [
+    1536,
+    1024
+  ],
+  "bases": [
+    {
+      "era": 0,
+      "name": "stone-cave",
+      "file": "bases/e0.png",
+      "size": [
+        474,
+        402
+      ],
+      "sourceCrop": [
+        42,
+        101,
+        516,
+        503
+      ]
+    },
+    {
+      "era": 1,
+      "name": "medieval-castle",
+      "file": "bases/e1.png",
+      "size": [
+        468,
+        414
+      ],
+      "sourceCrop": [
+        536,
+        80,
+        1004,
+        494
+      ]
+    },
+    {
+      "era": 2,
+      "name": "gunpowder-fort",
+      "file": "bases/e2.png",
+      "size": [
+        478,
+        422
+      ],
+      "sourceCrop": [
+        1019,
+        76,
+        1497,
+        498
+      ]
+    },
+    {
+      "era": 3,
+      "name": "industrial-bunker",
+      "file": "bases/e3.png",
+      "size": [
+        492,
+        400
+      ],
+      "sourceCrop": [
+        211,
+        533,
+        703,
+        933
+      ]
+    },
+    {
+      "era": 4,
+      "name": "plasma-base",
+      "file": "bases/e4.png",
+      "size": [
+        517,
+        373
+      ],
+      "sourceCrop": [
+        770,
+        559,
+        1287,
+        932
+      ]
+    }
+  ]
+}

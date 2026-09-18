@@ -1,0 +1,16 @@
+.DS_Store
+assets/__pycache__/
+*.pyc
+ian-xiaohei-illustrations-main/
+ian-xiaohei-illustrations-main.zip
+assets/ai-ui-animation-space-bunny-illustrations/
+assets/ai-ui-animation-xiaohei-illustrations/
+assets/space-bunny-mascot/
+assets/test-xiaohei-illustrations/
+assets/units-atlas.png
+assets/units-atlas-transparent.png
+assets/bases-atlas.png
+assets/bases-atlas-transparent.png
+assets/*-generation.json
+assets/*-prompt.txt
+assets/extract-*.py

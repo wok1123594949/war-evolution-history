@@ -1,0 +1,249 @@
+{
+  "atlas": "units-atlas.png",
+  "atlasSize": [
+    1536,
+    2048
+  ],
+  "units": [
+    {
+      "era": 0,
+      "unit": 0,
+      "name": "stone-axe",
+      "file": "units/e0-u0.png",
+      "size": [
+        413,
+        353
+      ],
+      "sourceCrop": [
+        95,
+        99,
+        508,
+        452
+      ]
+    },
+    {
+      "era": 0,
+      "unit": 1,
+      "name": "slinger",
+      "file": "units/e0-u1.png",
+      "size": [
+        374,
+        323
+      ],
+      "sourceCrop": [
+        530,
+        126,
+        904,
+        449
+      ]
+    },
+    {
+      "era": 0,
+      "unit": 2,
+      "name": "mammoth-rider",
+      "file": "units/e0-u2.png",
+      "size": [
+        521,
+        439
+      ],
+      "sourceCrop": [
+        977,
+        17,
+        1498,
+        456
+      ]
+    },
+    {
+      "era": 1,
+      "unit": 0,
+      "name": "bronze-guard",
+      "file": "units/e1-u0.png",
+      "size": [
+        441,
+        370
+      ],
+      "sourceCrop": [
+        70,
+        474,
+        511,
+        844
+      ]
+    },
+    {
+      "era": 1,
+      "unit": 1,
+      "name": "archer",
+      "file": "units/e1-u1.png",
+      "size": [
+        319,
+        372
+      ],
+      "sourceCrop": [
+        576,
+        470,
+        895,
+        842
+      ]
+    },
+    {
+      "era": 1,
+      "unit": 2,
+      "name": "chariot",
+      "file": "units/e1-u2.png",
+      "size": [
+        499,
+        350
+      ],
+      "sourceCrop": [
+        964,
+        492,
+        1463,
+        842
+      ]
+    },
+    {
+      "era": 2,
+      "unit": 0,
+      "name": "pikeman",
+      "file": "units/e2-u0.png",
+      "size": [
+        452,
+        365
+      ],
+      "sourceCrop": [
+        69,
+        863,
+        521,
+        1228
+      ]
+    },
+    {
+      "era": 2,
+      "unit": 1,
+      "name": "musketeer",
+      "file": "units/e2-u1.png",
+      "size": [
+        416,
+        358
+      ],
+      "sourceCrop": [
+        516,
+        874,
+        932,
+        1232
+      ]
+    },
+    {
+      "era": 2,
+      "unit": 2,
+      "name": "cannon",
+      "file": "units/e2-u2.png",
+      "size": [
+        511,
+        292
+      ],
+      "sourceCrop": [
+        971,
+        934,
+        1482,
+        1226
+      ]
+    },
+    {
+      "era": 3,
+      "unit": 0,
+      "name": "infantry",
+      "file": "units/e3-u0.png",
+      "size": [
+        411,
+        326
+      ],
+      "sourceCrop": [
+        69,
+        1263,
+        480,
+        1589
+      ]
+    },
+    {
+      "era": 3,
+      "unit": 1,
+      "name": "machine-gunner",
+      "file": "units/e3-u1.png",
+      "size": [
+        440,
+        322
+      ],
+      "sourceCrop": [
+        508,
+        1268,
+        948,
+        1590
+      ]
+    },
+    {
+      "era": 3,
+      "unit": 2,
+      "name": "tank",
+      "file": "units/e3-u2.png",
+      "size": [
+        551,
+        307
+      ],
+      "sourceCrop": [
+        946,
+        1279,
+        1497,
+        1586
+      ]
+    },
+    {
+      "era": 4,
+      "unit": 0,
+      "name": "energy-vanguard",
+      "file": "units/e4-u0.png",
+      "size": [
+        436,
+        375
+      ],
+      "sourceCrop": [
+        58,
+        1631,
+        494,
+        2006
+      ]
+    },
+    {
+      "era": 4,
+      "unit": 1,
+      "name": "plasma-trooper",
+      "file": "units/e4-u1.png",
+      "size": [
+        387,
+        377
+      ],
+      "sourceCrop": [
+        528,
+        1631,
+        915,
+        2008
+      ]
+    },
+    {
+      "era": 4,
+      "unit": 2,
+      "name": "giant-mech",
+      "file": "units/e4-u2.png",
+      "size": [
+        492,
+        399
+      ],
+      "sourceCrop": [
+        991,
+        1616,
+        1483,
+        2015
+      ]
+    }
+  ]
+}

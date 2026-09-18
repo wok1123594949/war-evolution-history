@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#201a15">
+<meta name="description" content="从石器到未来，征募军队、守卫城堡，让你的文明穿越五个战争时代。">
+<title>战争进化史 · Age of War</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-swords" viewBox="0 0 24 24"><path d="M3 2l5 2 12 14-3 3L4 7 3 2zm18 0-5 2L4 18l3 3L20 7l1-5z"/><path d="M2 15l7 7m6 0 7-7"/></symbol>
+<symbol id="i-coin" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="10"/><ellipse cx="12" cy="12" rx="6" ry="7"/><path d="M12 7v10m-3-7h6m-6 4h6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.1 6.6 7.2 1-5.2 5.1 1.2 7.2-6.3-3.4-6.3 3.4 1.2-7.2-5.2-5.1 7.2-1L12 2z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2 21 6v6c0 5-9 10-9 10S3 17 3 12V6l9-4z"/><path d="M12 6v11M7 11h10"/></symbol>
+<symbol id="i-tower" viewBox="0 0 24 24"><path d="M5 22V10L3 7V2h4v4h3V2h4v4h3V2h4v5l-2 3v12H5z"/><path d="M10 22v-7h4v7"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="m14 1-11 13h8l-1 9L22 9h-9l1-8z"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="m4 12 8-9 8 9h-5v9H9v-9H4z"/></symbol>
+<symbol id="i-sound" viewBox="0 0 24 24"><path d="M3 9h4l6-5v16l-6-5H3V9z"/><path d="M17 8a7 7 0 0 1 0 8m3-11a11 11 0 0 1 0 14"/></symbol>
+<symbol id="i-mute" viewBox="0 0 24 24"><path d="M3 9h4l6-5v16l-6-5H3V9zM17 9l5 6m0-6-5 6"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM15 4h4v16h-4z"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="m7 3 15 9-15 9V3z"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 8c0-5 9-4 8 1-.6 2-4 2-4 5m0 3v1"/></symbol>
+<symbol id="i-repair" viewBox="0 0 24 24"><path d="m14 4 5-2-2 5 4 3c-2 5-5 5-8 3l-8 9-3-3 9-9c-2-4-1-6 3-6z"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 23V2m0 1c5-5 9 5 16 0v12c-7 5-11-5-16 0"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 5v7l5 3"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M2 9V2h7m6 0h7v7M2 15v7h7m6 0h7v-7"/></symbol>
+</defs></svg>
+<div class="game-shell">
+<header class="topbar">
+  <a class="brand" href="#" id="home-btn" aria-label="战争进化史主菜单"><span class="brand-emblem"><svg><use href="#i-swords"/></svg></span><span><strong>战争进化史</strong><small>AGE OF WAR</small></span></a>
+  <div class="resource-bar">
+    <div class="resource gold"><svg><use href="#i-coin"/></svg><div><small>战争金币 <span id="income">+1.7/s</span></small><strong id="gold">180</strong></div></div>
+    <div class="resource xp"><svg><use href="#i-star"/></svg><div><small>文明经验</small><strong id="xp">0</strong></div></div>
+    <div class="resource population"><svg><use href="#i-flag"/></svg><div><small>战场兵力</small><strong id="population">0</strong></div></div>
+  </div>
+  <div class="toolbar"><button id="speed-btn" class="tool-btn text-tool" title="切换战斗速度" aria-label="切换战斗速度">1×</button><button id="pause-btn" class="tool-btn" title="暂停（空格）" aria-label="暂停"><svg><use href="#i-pause"/></svg></button><button id="sound-btn" class="tool-btn" title="音效" aria-label="关闭音效"><svg><use href="#i-sound"/></svg></button><button id="help-btn" class="tool-btn" title="玩法说明" aria-label="玩法说明"><svg><use href="#i-help"/></svg></button><button id="fullscreen-btn" class="tool-btn fullscreen-tool" title="全屏" aria-label="全屏"><svg><use href="#i-expand"/></svg></button></div>
+</header>
+<nav class="era-ribbon" aria-label="时代进程" id="era-nodes"></nav>
+<main>
+<section class="battle-frame" id="battle-frame" aria-label="战场">
+  <canvas id="battlefield" aria-label="两军交战的横向战场"></canvas>
+  <div class="battle-hud">
+    <div class="base-hud player"><div class="base-label"><span><svg><use href="#i-shield"/></svg> 黎明部落</span><small id="player-era">石器时代</small></div><div class="base-hp"><i id="player-hp"></i><span id="player-hp-text">1500 / 1500</span></div><div class="base-slots" id="player-slots"></div></div>
+    <div class="battle-clock"><span class="live-dot"></span><span id="battle-status">保卫基地 · 摧毁敌营</span><strong id="timer">00:00</strong></div>
+    <div class="base-hud enemy"><div class="base-label"><span>暮色军团 <svg><use href="#i-shield"/></svg></span><small id="enemy-era">石器时代</small></div><div class="base-hp"><i id="enemy-hp"></i><span id="enemy-hp-text">1500 / 1500</span></div><div class="base-slots"><span>敌方基地</span></div></div>
+  </div>
+  <div class="battle-toast" id="battle-toast" role="status"></div>
+  <div class="target-hint" id="target-hint" hidden><svg><use href="#i-bolt"/></svg><strong>选择轰击落点</strong><span>点击战场释放 · Esc 取消</span><button id="cancel-target">取消</button></div>
+  <div class="battle-banner" id="battle-banner" hidden><span>Ⅱ</span><strong>战斗已暂停</strong><button id="resume-btn" class="gold-button">继续战斗</button></div>
+  <div class="battle-tip" id="battle-tip">先征募一名石斧兵，让投石手在后方提供火力。</div>
+</section>
+<section class="command-deck" aria-label="指挥台">
+  <div class="recruit-panel">
+    <div class="section-label"><span><svg><use href="#i-swords"/></svg> 征募军队</span><small>快捷键 1 / 2 / 3</small></div>
+    <div class="unit-cards" id="unit-buttons"></div>
+    <div class="training-bar"><span>训练队列</span><div id="training-queue"></div><small id="queue-label">等待征募</small></div>
+  </div>
+  <div class="evolution-panel">
+    <div class="section-label"><span><svg><use href="#i-up"/></svg> 文明进化</span><small id="era-count">I / V</small></div>
+    <div class="evolution-heading"><span id="next-era-icon">Ⅱ</span><div><small id="next-era-label">下一时代</small><strong id="next-era-name">中世纪</strong></div></div>
+    <div class="research-bar"><i id="xp-bar"></i></div><div class="research-caption"><span id="xp-detail">0 / 120 XP</span><span id="evolve-hint">击败敌军获得经验</span></div>
+    <button id="evolve-btn" class="gold-button"><svg><use href="#i-up"/></svg><span>进化时代</span><kbd>E</kbd></button>
+  </div>
+  <div class="tactics-panel">
+    <div class="section-label"><span><svg><use href="#i-bolt"/></svg> 战术与防御</span><small>基地支援</small></div>
+    <button id="skill-btn" class="tactic-btn special-btn"><span class="tactic-icon"><svg><use href="#i-bolt"/></svg></span><span><strong id="skill-name">巨石投掷</strong><small id="skill-caption">范围轰击 · 已就绪</small></span><kbd>Q</kbd><i id="skill-shade"></i></button>
+    <div class="support-row"><button id="turret-btn" class="support-btn"><svg><use href="#i-tower"/></svg><span>建造炮塔<small id="turret-cost">95 金</small></span><kbd>T</kbd></button><button id="repair-btn" class="support-btn"><svg><use href="#i-repair"/></svg><span>修复基地<small id="repair-cost">45 金</small></span><kbd>R</kbd></button></div>
+  </div>
+</section>
+</main>
+<footer class="game-footer"><div class="battle-feed"><span class="feed-label">战报</span><span id="latest-event">文明的征程，从第一簇火焰开始。</span></div><div><span id="save-label">本地自动存档</span><button id="menu-btn">主菜单</button></div></footer>
+</div>
+<div class="modal-layer start-layer" id="start-overlay" role="dialog" aria-modal="true" aria-label="战争进化史主菜单">
+  <div class="start-art"></div><div class="start-vignette"></div>
+  <div class="start-content"><div class="start-kicker"><i></i> 从第一簇火焰，到星际战场 <i></i></div><div class="start-emblem"><svg><use href="#i-swords"/></svg></div><h1>战争进化史</h1><p class="start-en">A G E &nbsp; O F &nbsp; W A R</p><div class="title-divider"><span>五个时代 · 一条战线 · 你的文明</span></div><p class="start-description">征募战士，建立防线，在烽火中进化。<br>从原始部落到未来军团，书写属于你的战争史诗。</p><div class="start-army" aria-hidden="true"><img src="assets/units/e0-u0.png" alt=""><img src="assets/units/e1-u2.png" alt=""><img src="assets/units/e4-u2.png" alt=""></div><div class="difficulty-picker" aria-label="难度选择"><button data-difficulty="easy">休闲</button><button data-difficulty="normal" class="selected">经典</button><button data-difficulty="hard">挑战</button></div><button id="start-btn" class="start-button"><svg><use href="#i-swords"/></svg><span>开启征程</span><b>➜</b></button><button id="continue-btn" class="continue-button" hidden>继续上次战役 <span id="continue-detail"></span></button><button id="menu-resume" class="continue-button" hidden>返回战场</button><p class="start-footnote">灵感源自经典横版策略游戏 · 浏览器独立重制</p></div>
+</div>
+<div class="modal-layer" id="help-overlay" hidden role="dialog" aria-modal="true" aria-label="战地手册"><div class="dialog-panel"><span class="dialog-kicker">FIELD MANUAL</span><h2>指挥官手册</h2><p>守住左侧基地，摧毁右侧敌营即可获胜。</p><div class="manual-grid"><div><b>01 / 征募军队</b><p>点击兵种卡加入训练队列。近战保护前线，远程负责输出，重装突破阵地。</p></div><div><b>02 / 文明进化</b><p>击杀与时间会带来经验。经验足够时进化，解锁更强兵种并修复、强化基地。</p></div><div><b>03 / 战术支援</b><p>技能免费且有冷却。先选技能，再点战场确定落点。炮塔自动攻击，维修恢复生命。</p></div><div><b>04 / 守住节奏</b><p>金币随时间增加，击杀还有奖励。保留一些金币支援前线，别让后排失去保护。</p></div></div><div class="shortcut-line">1 / 2 / 3 征募　E 进化　Q 技能　T 炮塔　R 维修　空格 暂停</div><button class="gold-button" id="close-help">准备好了</button></div></div>
+<div class="modal-layer" id="result-overlay" hidden role="dialog" aria-modal="true" aria-label="战斗结果"><div class="dialog-panel result-panel"><span class="result-emblem"><svg><use href="#i-flag"/></svg></span><span class="dialog-kicker" id="result-kicker">VICTORY</span><h2 id="result-title">文明的胜利</h2><p id="result-copy"></p><div class="result-stats" id="result-stats"></div><button id="restart-btn" class="gold-button">再次征战</button><button id="result-menu" class="plain-button">返回主菜单</button></div></div>
+<script src="engine.js"></script>
+<script src="renderer.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
