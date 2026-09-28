@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { ERAS, MISSIONS, DOCTRINES, UPGRADES, Engine } = require('../engine.js');
+const { ERAS, MISSIONS, DOCTRINES, UPGRADES, TACTICS, Engine } = require('../engine.js');
 let checks = 0;
 function test(name, fn) { fn(); checks++; console.log('✓ ' + name); }
 function run(engine, seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) engine.step(1 / 60); }
@@ -44,7 +44,7 @@ test('training is serial, player-only, capped at five and charges once', () => {
 test('pause freezes all state; every gameplay action is rejected', () => {
   const e = new Engine({ seed: 9 }); e.deploy(0); run(e, 2); e.togglePause();
   const frozen = e.serialize(); run(e, 5); assert.equal(e.serialize(), frozen);
-  for (const action of ['deploy', 'evolve', 'buyTurret', 'repair', 'special', 'setSpeed', 'upgrade', 'rally', 'heal']) assert.equal(e[action](0).ok, false, action);
+  for (const action of ['deploy', 'evolve', 'buyTurret', 'repair', 'special', 'setSpeed', 'upgrade', 'rally', 'heal', 'chooseTactic']) assert.equal(e[action](0).ok, false, action);
   assert.equal(e.togglePause().ok, true); run(e, 1); assert.ok(e.state.time > 2);
 });
 
@@ -107,7 +107,7 @@ test('special damage resolves rewards and terminal victory immediately', () => {
   const enemy = unit(e, 'enemy', 0, 1, 1380); e.state.bases.enemy.hp = 30;
   assert.equal(e.special(1380).ok, true); assert.equal(enemy.dead, true); assert.equal(e.state.stats.kills, 1); assert.equal(e.state.status, 'won');
   const frozen = e.serialize(); run(e, 5); assert.equal(e.serialize(), frozen);
-  for (const action of ['deploy', 'evolve', 'buyTurret', 'repair', 'special', 'setSpeed', 'togglePause']) assert.equal(e[action](0).ok, false, action);
+  for (const action of ['deploy', 'evolve', 'buyTurret', 'repair', 'special', 'setSpeed', 'togglePause', 'chooseTactic']) assert.equal(e[action](0).ok, false, action);
   const loss = new Engine({ seed: 4 }); loss.state.bases.player.hp = 0; run(loss, 0.1); assert.equal(loss.state.status, 'lost');
 });
 
@@ -331,6 +331,84 @@ test('five campaign missions are winnable through public actions across doctrine
     summary.push(`${mission.id}: ${times.join('/')}s`);
   }
   console.log('  campaign: ' + summary.join('; '));
+});
+
+test('tactical resupply offers unique cards at 12 seconds and waits for a player decision', () => {
+  const e = new Engine({ seed: 3, missionId: 'frontier' }); noAI(e);
+  run(e, 11.9); assert.deepEqual(e.state.tactics.choices, []);
+  run(e, 0.1); assert.equal(e.state.tactics.choices.length, 3); assert.equal(new Set(e.state.tactics.choices).size, 3);
+  const choices = e.state.tactics.choices.slice(), rng = e.rngState;
+  run(e, 80); assert.deepEqual(e.state.tactics.choices, choices); assert.equal(e.state.tactics.offers, 1); assert.equal(e.rngState, rng);
+  assert.equal(e.drainEvents().filter(ev => ev.type === 'tacticOffer').length, 1);
+  assert.equal(e.chooseTactic(choices[0]).ok, true); assert.deepEqual(e.state.tactics.choices, []); assert.equal(e.state.tactics.selected, 1);
+  run(e, 39.9); assert.deepEqual(e.state.tactics.choices, []); run(e, 0.1); assert.equal(e.state.tactics.offers, 2); assert.equal(e.state.tactics.choices.length, 3);
+});
+
+test('supply cards account for earned gold and reject absent, duplicate or invalid choices', () => {
+  const e = new Engine({ seed: 5, missionId: 'siege' }); noAI(e); run(e, 12);
+  assert.ok(e.state.tactics.choices.includes('supply'));
+  const gold = e.state.gold, earned = e.state.stats.goldEarned;
+  assert.equal(e.chooseTactic('supply').ok, true); assert.equal(e.state.gold, gold + 170); assert.equal(e.state.stats.goldEarned, earned + 170);
+  for (const key of ['supply', 'not-a-card', '__proto__', 'constructor', undefined, null, {}, 2]) {
+    const frozen = e.serialize(); assert.equal(e.chooseTactic(key).ok, false); assert.equal(e.serialize(), frozen);
+  }
+  assert.equal(e.drainEvents().filter(ev => ev.type === 'tactic').length, 1);
+});
+
+test('overdrive changes only player training progress and expires without changing queue totals', () => {
+  const e = new Engine({ seed: 5 }); noAI(e); run(e, 12); e.deploy(2); e._enemyDeploy(2);
+  const playerTotal = e.state.queue[0].total, enemyTotal = e.state.enemyQueue[0].total;
+  assert.equal(e.chooseTactic('overdrive').ok, true); e._train(1);
+  assert.equal(e.state.queue[0].remaining, playerTotal - 2); assert.equal(e.state.enemyQueue[0].remaining, enemyTotal - 1);
+  assert.equal(e.state.queue[0].total, playerTotal); e._stepTactics(12); assert.equal(e.state.tactics.buffs.training, 0);
+  e._train(1); assert.equal(e.state.queue[0].remaining, playerTotal - 3);
+});
+
+test('barrier reduces all incoming base damage for 15 seconds without shielding enemies', () => {
+  const e = new Engine({ seed: 1 }); noAI(e); run(e, 12); const playerHp = e.state.bases.player.hp, enemyHp = e.state.bases.enemy.hp;
+  assert.equal(e.chooseTactic('barrier').ok, true); e._damageBase('player', 100); e._damageBase('enemy', 100);
+  assert.equal(e.state.bases.player.hp, playerHp - 40); assert.equal(e.state.bases.enemy.hp, enemyHp - 100);
+  e._stepTactics(15); e._damageBase('player', 100); assert.equal(e.state.bases.player.hp, playerHp - 140);
+});
+
+test('jammer slows enemy attack and movement, preserves friendly stats and expires cleanly', () => {
+  const e = new Engine({ seed: 3 }); noAI(e); run(e, 12);
+  const enemy = unit(e, 'enemy', 0, 0, 1200), player = unit(e, 'player', 0, 0, 400), enemyRate = e._interval(enemy), playerRate = e._interval(player);
+  assert.equal(e.chooseTactic('jammer').ok, true); assert.equal(e._interval(enemy), enemyRate / 0.65); assert.equal(e._interval(player), playerRate);
+  e._moveUnits(0.1); assert.ok(Math.abs(enemy.x - (1200 - enemy.speed * 0.065)) < 1e-8); assert.ok(Math.abs(player.x - (400 + player.speed * 0.1)) < 1e-8);
+  e._stepTactics(10); assert.equal(e._interval(enemy), enemyRate); const x = enemy.x; e._moveUnits(0.1); assert.ok(Math.abs(enemy.x - (x - enemy.speed * 0.1)) < 1e-8);
+});
+
+test('command refresh reduces four cooldowns without resetting durations or going below zero', () => {
+  const e = new Engine({ seed: 1 }); noAI(e); run(e, 12); e.rally();
+  e.state.cooldowns.special = 25; e.state.cooldowns.repair = 3; e.state.cooldowns.heal = 0;
+  assert.equal(e.chooseTactic('command').ok, true);
+  assert.deepEqual(e.state.cooldowns, { special: 13, repair: 0, rally: 23, heal: 0 }); assert.equal(e.state.buffs.rally, 10);
+});
+
+test('tactics persist exactly, pause with the battle, and malformed or old saves normalize safely', () => {
+  const a = new Engine({ seed: 1, missionId: 'frontier' }); noAI(a); a.state.enemyTimer = 100; run(a, 12); a.chooseTactic('barrier'); run(a, 2);
+  const b = Engine.fromSave(a.serialize()); assert.deepEqual(JSON.parse(a.serialize()), JSON.parse(b.serialize()));
+  a.togglePause(); const frozen = a.serialize(); assert.equal(a.chooseTactic('supply').ok, false); run(a, 20); assert.equal(a.serialize(), frozen);
+  a.togglePause(); a.drainEvents(); b.drainEvents(); run(a, 45); run(b, 45); assert.deepEqual(JSON.parse(a.serialize()), JSON.parse(b.serialize())); assert.deepEqual(a.drainEvents(), b.drainEvents());
+  const raw = JSON.parse(a.serialize()); delete raw.state.tactics;
+  const old = Engine.fromSave(raw); assert.deepEqual(old.state.tactics.choices, []); assert.ok(!old.drainEvents().some(ev => ev.type === 'saveError')); old.step(1 / 60); assert.equal(old.state.tactics.choices.length, 3);
+  raw.state.tactics = { choices: ['supply', 'supply', '__proto__'], nextOffer: -5, selected: 999, offers: -1, buffs: { training: 999, barrier: -1, jammer: null } };
+  const clean = Engine.fromSave(raw).state.tactics;
+  assert.deepEqual(clean.choices, []); assert.equal(clean.nextOffer, 0); assert.equal(clean.selected, 0); assert.deepEqual(clean.buffs, { training: 12, barrier: 0, jammer: 0 });
+});
+
+test('tactical offer rotation covers all five cards without affecting combat randomness', () => {
+  assert.equal(TACTICS.length, 5);
+  for (const seed of [1, 3, 42, 2026, 4294967295]) {
+    const e = new Engine({ seed }), seen = new Set(), rng = e.rngState;
+    for (let i = 0; i < 5; i++) {
+      e.state.time = e.state.tactics.nextOffer; e._stepTactics(0);
+      for (const id of e.state.tactics.choices) seen.add(id);
+      assert.equal(e.chooseTactic(e.state.tactics.choices[0]).ok, true);
+    }
+    assert.equal(seen.size, 5); assert.equal(e.rngState, rng);
+  }
 });
 
 console.log(`\n${checks} engine tests passed`);

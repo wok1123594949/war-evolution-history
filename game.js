@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const { ERAS, Engine, MISSIONS, DOCTRINES, UPGRADES } = window.WarEngine;
+  const { ERAS, Engine, MISSIONS, DOCTRINES, UPGRADES, TACTICS } = window.WarEngine;
   const Campaign = window.CampaignProgress;
   const $ = id => document.getElementById(id);
   const icons = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -145,6 +145,19 @@
     $('rally-btn').classList.toggle('active', s.buffs.rally > 0);
     text('rally-caption', s.buffs.rally > 0 ? `全军突击 · 剩余 ${Math.ceil(s.buffs.rally)} 秒` : s.cooldowns.rally > 0 ? `${Math.ceil(s.cooldowns.rally)} 秒后就绪` : '攻速 +35% · 移速 +20% · 10秒');
     text('heal-caption', s.cooldowns.heal > 0 ? `${Math.ceil(s.cooldowns.heal)} 秒后就绪` : injured ? '恢复全军 25% 最大生命' : '暂无伤员 · 恢复 25% 生命');
+    renderTactics(s, running);
+  }
+  function renderTactics(s, running) {
+    const panel = $('tactical-supply'), cards = $('tactic-cards'), choices = s.tactics?.choices || [];
+    hidden('tactical-supply', choices.length === 0);
+    if (!choices.length) return;
+    text('tactic-offer-countdown', `第 ${s.tactics.offers} 次补给`);
+    const byId = id => TACTICS.find(t => t.id === id);
+    cards.innerHTML = choices.map(id => {
+      const tactic = byId(id);
+      return tactic ? `<button class="tactic-card" data-tactic="${tactic.id}" ${running ? '' : 'disabled'}><span class="tactic-card-icon">${tactic.icon}</span><span><strong>${tactic.name}</strong><small>${tactic.description}</small></span><b>选择</b></button>` : '';
+    }).join('');
+    cards.querySelectorAll('[data-tactic]').forEach(button => button.addEventListener('click', () => action('chooseTactic', button.dataset.tactic)));
   }
   function updateUI() {
     const s = engine.state, era = ERAS[s.era], running = started && s.status === 'playing';
@@ -176,14 +189,17 @@
   }
   function handleEvents() {
     const events = engine.drainEvents(); renderer?.handleEvents?.(events);
+    let tacticOffered = false;
     for (const ev of events) {
       if (!['kill', 'spawn'].includes(ev.type) || ev.side === 'player') text('latest-event', `${fmt(engine.state.time)}　${ev.text}`);
-      if (['evolve', 'enemyEvolve', 'turret', 'repair', 'saveError', 'load', 'upgrade', 'rally', 'heal', 'outpost', 'boss', 'bossDefeated', 'wave'].includes(ev.type)) notify(ev.text);
+      if (['evolve', 'enemyEvolve', 'turret', 'repair', 'saveError', 'load', 'upgrade', 'rally', 'heal', 'outpost', 'boss', 'bossDefeated', 'wave', 'tacticOffer', 'tactic'].includes(ev.type)) notify(ev.text);
       if (['deploy', 'evolve', 'special', 'repair', 'turret'].includes(ev.type)) GameAudio.play(ev.type);
       if (['upgrade', 'rally'].includes(ev.type)) GameAudio.play('evolve');
       if (ev.type === 'heal') GameAudio.play('repair');
       if (ev.type === 'kill') GameAudio.play('hit');
+      if (ev.type === 'tacticOffer') tacticOffered = true;
     }
+    if (tacticOffered) updateUI();
   }
   function action(method, ...args) {
     GameAudio.unlock(); if (!started || !$('start-overlay').hidden || !$('help-overlay').hidden || !$('result-overlay').hidden) return;

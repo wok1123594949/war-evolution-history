@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#201a15">
-<meta name="description" content="五场文明远征：争夺据点、突破要塞、坚守防线，搭配军团专长、战地研发与战术号令。">
+<meta name="description" content="五场文明远征：争夺据点、突破要塞、坚守防线，搭配军团专长、战地研发、战术补给与兵种图鉴。">
 <title>战争进化史 · 远征篇</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="expedition.css">
+<link rel="stylesheet" href="field-guide.css">
+<link rel="stylesheet" href="modern.css">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -72,6 +74,10 @@
     <div class="support-row"><button id="turret-btn" class="support-btn"><svg><use href="#i-tower"/></svg><span>建造炮塔<small id="turret-cost">95 金</small></span><kbd>T</kbd></button><button id="repair-btn" class="support-btn"><svg><use href="#i-repair"/></svg><span>修复基地<small id="repair-cost">45 金</small></span><kbd>R</kbd></button></div>
   </div>
 </section>
+<section class="tactical-supply" id="tactical-supply" hidden aria-label="战术补给">
+  <div class="supply-heading"><div><span class="supply-kicker">TACTICAL DROP · FIELD DECISION</span><strong>战术补给已抵达</strong><small>从三张战术卡中选择一张，效果立即生效</small></div><span id="tactic-offer-countdown" class="supply-countdown">可选择</span></div>
+  <div class="tactic-cards" id="tactic-cards"></div>
+</section>
 <section class="strategy-deck" aria-label="军团策略">
   <div class="tech-section"><div class="section-label"><span><svg><use href="#i-up"/></svg> 战地研发</span><small>金币投资 · 本局持续生效</small></div><div class="tech-cards" id="tech-cards"></div></div>
   <div class="orders-section"><div class="section-label"><span><svg><use href="#i-flag"/></svg> 战场号令</span><small id="doctrine-badge">军团专长</small></div><div class="orders-row"><button id="rally-btn" class="order-btn"><svg><use href="#i-flag"/></svg><span><strong>战争鼓舞</strong><small id="rally-caption">攻速 +35% · 持续 10 秒</small></span><kbd>F</kbd></button><button id="heal-btn" class="order-btn"><svg><use href="#i-shield"/></svg><span><strong>战地治疗</strong><small id="heal-caption">恢复全军 25% 生命</small></span><kbd>H</kbd></button></div></div>
@@ -97,5 +103,6 @@
 <script src="audio.js"></script>
 <script src="campaign.js"></script>
 <script src="game.js"></script>
+<script src="field-guide.js"></script>
 </body>
 </html>

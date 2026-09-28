@@ -30,6 +30,16 @@
     { id: 'armor', name: '装甲强化', icon: '◆', description: '每级部队生命 +20%', maxLevel: 3 },
     { id: 'economy', name: '补给体系', icon: '⚙', description: '每级金币收入 +1/秒', maxLevel: 3 }
   ];
+  // Tactical cards are offered during a battle. The rotation is deterministic
+  // (rather than consuming the battle RNG) so existing saves remain replayable.
+  var TACTICS = [
+    { id: 'supply', name: '前线补给', icon: '✦', description: '立即获得 100 + 当前时代 × 35 金币。' },
+    { id: 'overdrive', name: '超频训练', icon: '➤', description: '12 秒内训练进度加速 100%。' },
+    { id: 'barrier', name: '临时壁垒', icon: '◇', description: '15 秒内基地受到的伤害降低 60%。' },
+    { id: 'jammer', name: '干扰脉冲', icon: '⌁', description: '10 秒内敌军移动与攻击速度降低 35%。' },
+    { id: 'command', name: '指挥授权', icon: '◎', description: '所有主动指令的剩余冷却时间减少 12 秒。' }
+  ];
+  function tacticById(id) { return TACTICS.find(function (t) { return t.id === id; }) || null; }
   function missionById(id) { return MISSIONS.find(function (m) { return m.id === id; }) || MISSIONS[0]; }
   function validDoctrine(id) { return DOCTRINES.some(function (d) { return d.id === id; }) ? id : 'balanced'; }
 
@@ -97,6 +107,7 @@
       cooldowns: { special: 0, repair: 0, rally: 0, heal: 0 },
       stats: { kills: 0, deployed: 0, goldEarned: 0, eliteKills: 0, outpostSeconds: 0 },
       upgrades: { weapons: 0, armor: 0, economy: 0 },
+      tactics: { choices: [], nextOffer: 12, offers: 0, selected: 0, buffs: { training: 0, barrier: 0, jammer: 0 } },
       objective: { type: mission.type, progress: 0, target: mission.target, label: mission.objectiveText },
       outpost: { x: 800, progress: 0, owner: 'neutral', held: 0, contested: false },
       wave: { number: 1, remaining: 38, nextElite: mission.id !== 'classic', pending: 0 },
@@ -179,6 +190,37 @@
     }
     this._eventsPush('upgrade', UPGRADES.find(function (u) { return u.id === key; }).name + '升至 ' + this.state.upgrades[key] + ' 级', 'player');
     return this._action(true);
+  };
+
+  Engine.prototype.chooseTactic = function (id) {
+    var blocked = this._actionAllowed('chooseTactic'); if (blocked) return blocked;
+    var tactics = this.state.tactics, index = tactics.choices.indexOf(id), card = tacticById(id);
+    if (!card || index < 0) return this._action(false, '战术卡不在手牌中');
+    if (id === 'supply') {
+      var reward = 100 + this.state.era * 35;
+      this.state.gold += reward; this.state.stats.goldEarned += reward;
+    } else if (id === 'overdrive') tactics.buffs.training = 12;
+    else if (id === 'barrier') tactics.buffs.barrier = 15;
+    else if (id === 'jammer') tactics.buffs.jammer = 10;
+    else if (id === 'command') {
+      ['special', 'repair', 'rally', 'heal'].forEach(function (key) {
+        this.state.cooldowns[key] = Math.max(0, this.state.cooldowns[key] - 12);
+      }, this);
+    }
+    tactics.selected++; tactics.choices = []; tactics.nextOffer = this.state.time + 40;
+    this._effect('rally', 800, 360, 1.2, '#9fe8ff', card.name, 110);
+    this._eventsPush('tactic', card.name + '：' + card.description, 'player');
+    return this._action(true, '', { tactic: id });
+  };
+
+  Engine.prototype._stepTactics = function (dt) {
+    var t = this.state.tactics;
+    ['training', 'barrier', 'jammer'].forEach(function (key) { t.buffs[key] = Math.max(0, t.buffs[key] - dt); });
+    if (t.choices.length || this.state.time + 1e-8 < t.nextOffer) return;
+    var offset = ((this.seed >>> 0) % TACTICS.length + t.offers * 2) % TACTICS.length;
+    t.choices = [TACTICS[offset].id, TACTICS[(offset + 1) % TACTICS.length].id, TACTICS[(offset + 3) % TACTICS.length].id];
+    t.offers++;
+    this._eventsPush('tacticOffer', '战术补给已抵达，从三张卡中选择一张！', 'player');
   };
 
   Engine.prototype.rally = function () {
@@ -314,7 +356,11 @@
   Engine.prototype._radius = function (kind) { return kind === 2 ? 24 : 15; };
   Engine.prototype._baseX = function (side) { return side === 'player' ? 125 : 1475; };
   Engine.prototype._enemySide = function (side) { return side === 'player' ? 'enemy' : 'player'; };
-  Engine.prototype._interval = function (u) { return (u.kind === 1 ? 1.35 : u.kind === 2 ? 1.85 : 1.0) / (u.side === 'player' && this.state.buffs.rally > 0 ? 1.35 : 1); };
+  Engine.prototype._interval = function (u) {
+    var rate = u.side === 'player' && this.state.buffs.rally > 0 ? 1.35 : 1;
+    if (u.side === 'enemy' && this.state.tactics.buffs.jammer > 0) rate *= 0.65;
+    return (u.kind === 1 ? 1.35 : u.kind === 2 ? 1.85 : 1.0) / rate;
+  };
 
   Engine.prototype._effect = function (type, x, y, life, color, label, radius) {
     this.state.effects.push({ type: type, x: x, y: y, life: life, maxLife: life, color: color || '#f8db74', text: label || '', radius: radius || 0 });
@@ -367,6 +413,7 @@
   Engine.prototype._damageBase = function (side, damage) {
     var base = this.state.bases[side];
     if (base.hp <= 0) return;
+    if (side === 'player' && this.state.tactics.buffs.barrier > 0) damage *= 0.4;
     base.hp = Math.max(0, base.hp - damage); base.hitFlash = 0.2;
     this._effect('hit', this._baseX(side), GROUND_Y - 55, 0.25, '#f6bf68');
   };
@@ -430,7 +477,9 @@
       if (this._unitAttack(u, enemy)) continue;
       var direction = u.side === 'player' ? 1 : -1;
       if (this._unitBaseAttack(u, this._enemySide(u.side))) continue;
-      var desired = u.x + direction * u.speed * (u.side === 'player' && this.state.buffs.rally > 0 ? 1.2 : 1) * dt, formation = this._formation(u);
+      var haste = u.side === 'player' && this.state.buffs.rally > 0 ? 1.2 : 1;
+      if (u.side === 'enemy' && this.state.tactics.buffs.jammer > 0) haste *= 0.65;
+      var desired = u.x + direction * u.speed * haste * dt, formation = this._formation(u);
       for (var j = 0; j < live.length; j++) {
         var other = live[j]; if (other === u || other.dead) continue;
         var ahead = (other.x - u.x) * direction;
@@ -497,7 +546,8 @@
 
   Engine.prototype._trainQueue = function (queue, dt) {
     if (!queue.length) return;
-    queue[0].remaining = Math.max(0, queue[0].remaining - dt);
+    var rate = queue[0].side === 'player' && this.state.tactics.buffs.training > 0 ? 2 : 1;
+    queue[0].remaining = Math.max(0, queue[0].remaining - dt * rate);
     if (queue[0].remaining === 0 && this._spawnFromQueue(queue[0])) queue.shift();
   };
 
@@ -618,7 +668,7 @@
     this.state.cooldowns.rally = Math.max(0, this.state.cooldowns.rally - dt);
     this.state.cooldowns.heal = Math.max(0, this.state.cooldowns.heal - dt);
     this.state.buffs.rally = Math.max(0, this.state.buffs.rally - dt);
-    this._passive(dt); this._enemyThink(dt); this._train(dt); this._moveUnits(dt); this._stepProjectiles(dt);
+    this._passive(dt); this._stepTactics(dt); this._enemyThink(dt); this._train(dt); this._moveUnits(dt); this._stepProjectiles(dt);
     this.state.wave.remaining = Math.max(0, this.state.nextEnemyWave - this.state.time);
     this._turretFire('player', dt); this._turretFire('enemy', dt); this._stepOutpost(dt); this._cleanup(dt); this._finish();
   };
@@ -672,6 +722,15 @@
         clean.wave.pending = Math.floor(num(wave.pending, 0, 0, 100000));
         var commander = s.commander || {};
         clean.commander = { spawned: !!commander.spawned, defeated: !!commander.defeated, id: Number.isInteger(commander.id) && commander.id > 0 && commander.id < 1e12 ? commander.id : null };
+        var tactics = s.tactics || {}, choices = Array.isArray(tactics.choices) ? tactics.choices.slice(0, 3) : [];
+        choices = choices.filter(function (id, index) { return !!tacticById(id) && choices.indexOf(id) === index; });
+        clean.tactics.choices = choices.length === 3 ? choices : [];
+        clean.tactics.nextOffer = num(tactics.nextOffer, 12, 0, 86440);
+        clean.tactics.offers = Math.floor(num(tactics.offers, clean.tactics.choices.length ? 1 : 0, 0, 100000));
+        clean.tactics.selected = Math.floor(num(tactics.selected, 0, 0, clean.tactics.offers));
+        clean.tactics.buffs.training = num(tactics.buffs && tactics.buffs.training, 0, 0, 12);
+        clean.tactics.buffs.barrier = num(tactics.buffs && tactics.buffs.barrier, 0, 0, 15);
+        clean.tactics.buffs.jammer = num(tactics.buffs && tactics.buffs.jammer, 0, 0, 10);
       }
       var sides = ['player', 'enemy'];
       for (var i = 0; i < sides.length; i++) {
@@ -728,5 +787,5 @@
   };
 
   Engine.WORLD_WIDTH = WORLD_WIDTH; Engine.GROUND_Y = GROUND_Y; Engine.DT = DT; Engine.MAX_PER_SIDE = MAX_PER_SIDE; Engine.SAVE_VERSION = VERSION;
-  return { ERAS: ERAS, MISSIONS: MISSIONS, DOCTRINES: DOCTRINES, UPGRADES: UPGRADES, Engine: Engine };
+  return { ERAS: ERAS, MISSIONS: MISSIONS, DOCTRINES: DOCTRINES, UPGRADES: UPGRADES, TACTICS: TACTICS, Engine: Engine };
 });
