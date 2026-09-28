@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#201a15">
-<meta name="description" content="从石器到未来，征募军队、守卫城堡，让你的文明穿越五个战争时代。">
-<title>战争进化史 · Age of War</title>
+<meta name="description" content="五场文明远征：争夺据点、突破要塞、坚守防线，搭配军团专长、战地研发与战术号令。">
+<title>战争进化史 · 远征篇</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="expedition.css">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -32,13 +33,14 @@
 <header class="topbar">
   <a class="brand" href="#" id="home-btn" aria-label="战争进化史主菜单"><span class="brand-emblem"><svg><use href="#i-swords"/></svg></span><span><strong>战争进化史</strong><small>AGE OF WAR</small></span></a>
   <div class="resource-bar">
-    <div class="resource gold"><svg><use href="#i-coin"/></svg><div><small>战争金币 <span id="income">+1.7/s</span></small><strong id="gold">180</strong></div></div>
+    <div class="resource gold"><svg><use href="#i-coin"/></svg><div><small>战争金币 <span id="income">+4.5/s</span></small><strong id="gold">180</strong></div></div>
     <div class="resource xp"><svg><use href="#i-star"/></svg><div><small>文明经验</small><strong id="xp">0</strong></div></div>
     <div class="resource population"><svg><use href="#i-flag"/></svg><div><small>战场兵力</small><strong id="population">0</strong></div></div>
   </div>
   <div class="toolbar"><button id="speed-btn" class="tool-btn text-tool" title="切换战斗速度" aria-label="切换战斗速度">1×</button><button id="pause-btn" class="tool-btn" title="暂停（空格）" aria-label="暂停"><svg><use href="#i-pause"/></svg></button><button id="sound-btn" class="tool-btn" title="音效" aria-label="关闭音效"><svg><use href="#i-sound"/></svg></button><button id="help-btn" class="tool-btn" title="玩法说明" aria-label="玩法说明"><svg><use href="#i-help"/></svg></button><button id="fullscreen-btn" class="tool-btn fullscreen-tool" title="全屏" aria-label="全屏"><svg><use href="#i-expand"/></svg></button></div>
 </header>
 <nav class="era-ribbon" aria-label="时代进程" id="era-nodes"></nav>
+<div class="mission-bar"><div class="mission-identity"><span class="mission-badge">远征</span><div><strong id="mission-title">火种边境</strong><small id="objective-text">摧毁敌军基地</small></div></div><div class="mission-progress"><div><span id="objective-value">0%</span><small id="outpost-income">争夺中央补给站</small></div><div class="objective-track"><i id="objective-fill"></i></div></div><div class="wave-preview"><svg><use href="#i-flag"/></svg><div><strong id="wave-count">下一波援军</strong><small id="wave-time">集结中</small></div></div></div>
 <main>
 <section class="battle-frame" id="battle-frame" aria-label="战场">
   <canvas id="battlefield" aria-label="两军交战的横向战场"></canvas>
@@ -70,18 +72,30 @@
     <div class="support-row"><button id="turret-btn" class="support-btn"><svg><use href="#i-tower"/></svg><span>建造炮塔<small id="turret-cost">95 金</small></span><kbd>T</kbd></button><button id="repair-btn" class="support-btn"><svg><use href="#i-repair"/></svg><span>修复基地<small id="repair-cost">45 金</small></span><kbd>R</kbd></button></div>
   </div>
 </section>
+<section class="strategy-deck" aria-label="军团策略">
+  <div class="tech-section"><div class="section-label"><span><svg><use href="#i-up"/></svg> 战地研发</span><small>金币投资 · 本局持续生效</small></div><div class="tech-cards" id="tech-cards"></div></div>
+  <div class="orders-section"><div class="section-label"><span><svg><use href="#i-flag"/></svg> 战场号令</span><small id="doctrine-badge">军团专长</small></div><div class="orders-row"><button id="rally-btn" class="order-btn"><svg><use href="#i-flag"/></svg><span><strong>战争鼓舞</strong><small id="rally-caption">攻速 +35% · 持续 10 秒</small></span><kbd>F</kbd></button><button id="heal-btn" class="order-btn"><svg><use href="#i-shield"/></svg><span><strong>战地治疗</strong><small id="heal-caption">恢复全军 25% 生命</small></span><kbd>H</kbd></button></div></div>
+</section>
 </main>
 <footer class="game-footer"><div class="battle-feed"><span class="feed-label">战报</span><span id="latest-event">文明的征程，从第一簇火焰开始。</span></div><div><span id="save-label">本地自动存档</span><button id="menu-btn">主菜单</button></div></footer>
 </div>
-<div class="modal-layer start-layer" id="start-overlay" role="dialog" aria-modal="true" aria-label="战争进化史主菜单">
-  <div class="start-art"></div><div class="start-vignette"></div>
-  <div class="start-content"><div class="start-kicker"><i></i> 从第一簇火焰，到星际战场 <i></i></div><div class="start-emblem"><svg><use href="#i-swords"/></svg></div><h1>战争进化史</h1><p class="start-en">A G E &nbsp; O F &nbsp; W A R</p><div class="title-divider"><span>五个时代 · 一条战线 · 你的文明</span></div><p class="start-description">征募战士，建立防线，在烽火中进化。<br>从原始部落到未来军团，书写属于你的战争史诗。</p><div class="start-army" aria-hidden="true"><img src="assets/units/e0-u0.png" alt=""><img src="assets/units/e1-u2.png" alt=""><img src="assets/units/e4-u2.png" alt=""></div><div class="difficulty-picker" aria-label="难度选择"><button data-difficulty="easy">休闲</button><button data-difficulty="normal" class="selected">经典</button><button data-difficulty="hard">挑战</button></div><button id="start-btn" class="start-button"><svg><use href="#i-swords"/></svg><span>开启征程</span><b>➜</b></button><button id="continue-btn" class="continue-button" hidden>继续上次战役 <span id="continue-detail"></span></button><button id="menu-resume" class="continue-button" hidden>返回战场</button><p class="start-footnote">灵感源自经典横版策略游戏 · 浏览器独立重制</p></div>
+<div class="modal-layer start-layer campaign-layer" id="start-overlay" role="dialog" aria-modal="true" aria-label="远征地图">
+<div class="start-art"></div><div class="start-vignette"></div>
+<div class="campaign-menu">
+  <header class="campaign-heading"><div><span class="campaign-eyebrow">AGE OF WAR · EXPEDITIONS</span><h1>战争进化史 <em>远征篇</em></h1><p>选择战场，组建军团。每一次胜利，都有新的道路。</p></div><div class="campaign-record"><svg><use href="#i-star"/></svg><strong id="campaign-stars">0 / 15</strong><small>战役勋章</small></div></header>
+  <div class="campaign-layout">
+    <section class="campaign-map" aria-label="选择战役"><div class="section-label"><span>远征地图</span><button id="classic-btn" class="map-classic">经典自由战</button></div><div class="route-legend"><span>① 边境 → ② / ③ 支线 → ④ 防守 → ⑤ 决战</span><small>两条支线任选一条即可推进</small></div><div id="mission-cards" class="mission-cards"></div><p class="map-note" id="campaign-note">胜利解锁后续关卡 · 保全基地、快速通关可获得额外勋章</p></section>
+    <section class="deployment-panel" aria-label="出征准备"><div class="selected-mission-art"><img id="mission-art" src="assets/bases/e0.png" alt="石器营地"><span id="mission-chapter">CHAPTER 01</span></div><div class="selected-mission-copy"><small id="mission-subtitle">火种与边境</small><h2 id="selected-mission-name">火种边境</h2><p id="mission-description"></p><div class="mission-goal"><svg><use href="#i-flag"/></svg><span id="mission-goal"></span></div><div class="mission-medals" id="mission-medals"></div></div><div class="doctrine-heading">军团专长 <span>选择一条发展路线</span></div><div class="doctrine-options" id="doctrine-options"></div><div class="difficulty-picker" aria-label="难度选择"><button data-difficulty="easy">休闲</button><button data-difficulty="normal" class="selected">经典</button><button data-difficulty="hard">挑战</button></div><button id="start-btn" class="start-button"><svg><use href="#i-swords"/></svg><span>出征 · 火种边境</span><b>➜</b></button><button id="continue-btn" class="continue-button" hidden>继续上次战役 <span id="continue-detail"></span></button><button id="menu-resume" class="continue-button" hidden>返回当前战场</button></section>
+  </div>
+  <footer class="campaign-footer"><span>单局研发 · 中央据点 · 精英援军 · 战术号令</span><span>战役进度自动保存在当前浏览器</span></footer>
 </div>
-<div class="modal-layer" id="help-overlay" hidden role="dialog" aria-modal="true" aria-label="战地手册"><div class="dialog-panel"><span class="dialog-kicker">FIELD MANUAL</span><h2>指挥官手册</h2><p>守住左侧基地，摧毁右侧敌营即可获胜。</p><div class="manual-grid"><div><b>01 / 征募军队</b><p>点击兵种卡加入训练队列。近战保护前线，远程负责输出，重装突破阵地。</p></div><div><b>02 / 文明进化</b><p>击杀与时间会带来经验。经验足够时进化，解锁更强兵种并修复、强化基地。</p></div><div><b>03 / 战术支援</b><p>技能免费且有冷却。先选技能，再点战场确定落点。炮塔自动攻击，维修恢复生命。</p></div><div><b>04 / 守住节奏</b><p>金币随时间增加，击杀还有奖励。保留一些金币支援前线，别让后排失去保护。</p></div></div><div class="shortcut-line">1 / 2 / 3 征募　E 进化　Q 技能　T 炮塔　R 维修　空格 暂停</div><button class="gold-button" id="close-help">准备好了</button></div></div>
-<div class="modal-layer" id="result-overlay" hidden role="dialog" aria-modal="true" aria-label="战斗结果"><div class="dialog-panel result-panel"><span class="result-emblem"><svg><use href="#i-flag"/></svg></span><span class="dialog-kicker" id="result-kicker">VICTORY</span><h2 id="result-title">文明的胜利</h2><p id="result-copy"></p><div class="result-stats" id="result-stats"></div><button id="restart-btn" class="gold-button">再次征战</button><button id="result-menu" class="plain-button">返回主菜单</button></div></div>
+</div>
+<div class="modal-layer" id="help-overlay" hidden role="dialog" aria-modal="true" aria-label="战地手册"><div class="dialog-panel"><span class="dialog-kicker">FIELD MANUAL</span><h2>指挥官手册</h2><p>不同战役有不同胜利条件，请留意战场顶部的目标进度。经典自由战仍以摧毁敌营为目标。</p><div class="manual-grid"><div><b>01 / 征募军队</b><p>近战保护前线，远程负责输出，重装突破阵地。中央据点只在一方有兵时推进占领；控制后可获得持续收入。</p></div><div><b>02 / 文明进化</b><p>经验用于进化时代，金币既能出兵，也能研发军备、护甲和经济。研发会强化现有部队，本局持续有效。</p></div><div><b>03 / 战术支援</b><p>轰击需点击战场选点；鼓舞短时提高攻速与移动，治疗恢复现有部队生命。留意精英援军倒计时，合理安排冷却。</p></div><div><b>04 / 守住节奏</b><p>胜利解锁新关卡，支线任选一条即可前进。完成目标获得 1 星，基地生命 ≥50%、达到速通时间各加 1 星。</p></div></div><div class="shortcut-line">1 / 2 / 3 征募　E 进化　Q 技能　T 炮塔　R 维修　F 鼓舞　H 治疗　空格 暂停</div><button class="gold-button" id="close-help">准备好了</button></div></div>
+<div class="modal-layer" id="result-overlay" hidden role="dialog" aria-modal="true" aria-label="战斗结果"><div class="dialog-panel result-panel"><span class="result-emblem"><svg><use href="#i-flag"/></svg></span><span class="dialog-kicker" id="result-kicker">VICTORY</span><h2 id="result-title">文明的胜利</h2><p id="result-copy"></p><div class="result-medals" id="result-medals"></div><p id="result-objective"></p><div class="result-stats" id="result-stats"></div><button id="next-mission-btn" class="gold-button" hidden>前往下一战场</button><button id="restart-btn" class="gold-button">再次征战</button><button id="result-menu" class="plain-button">返回主菜单</button></div></div>
 <script src="engine.js"></script>
 <script src="renderer.js"></script>
 <script src="audio.js"></script>
+<script src="campaign.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

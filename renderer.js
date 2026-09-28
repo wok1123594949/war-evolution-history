@@ -159,7 +159,8 @@
       this._drawBase(125, state.era || 0, 'player', state.bases.player);
       this._drawBase(1475, state.enemyEra || 0, 'enemy', state.bases.enemy);
       this._ambient(state);
-      for (const unit of state.units || []) this._drawUnit(unit);
+      if (state.missionId && state.missionId !== 'classic') this._outpost(state.outpost);
+      for (const unit of state.units || []) this._drawUnit(unit, state);
       for (const projectile of state.projectiles || []) this._projectile(projectile, state);
       for (const effect of state.effects || []) this._effect(effect, state);
       this._drawParticles();
@@ -204,6 +205,10 @@
           this.seenEffects.add(fx);
           if (fx.type === 'special') { this.shake = 9; this._burst(fx.x, 487, fx.color || '#ffb553', 45, 160); }
           if (fx.type === 'hit') this._burst(fx.x, fx.y, fx.color || '#ffdb92', 5, 64);
+          if (fx.type === 'heal') this._burst(fx.x, fx.y || 465, '#a6f6b6', 8, 35, true);
+          if (fx.type === 'rally') this._burst(fx.x || 350, fx.y || 475, '#ffd18a', 18, 80, true);
+          if (fx.type === 'capture' || fx.type === 'outpost') this._burst(fx.x || 800, 440, fx.side === 'enemy' ? '#ff9b78' : '#a0e6ff', 24, 90, true);
+          if (fx.type === 'upgrade') this._burst(fx.x || 125, fx.y || 430, '#ffe0a1', 20, 70, true);
         }
       }
       for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -247,7 +252,83 @@
         c.save(); c.globalAlpha = 0.17;
         c.fillStyle = '#54bad2'; c.fillRect(0, 0, 1600, 640); c.restore();
       }
+      this._missionAtmosphere(state.missionId);
       this._birds();
+    }
+
+    _missionAtmosphere(missionId) {
+      const c = this.ctx;
+      if (!missionId || missionId === 'classic' || missionId === 'frontier') return;
+      c.save();
+      if (missionId === 'crossroads' || missionId === 'holdout') {
+        const cool = missionId === 'holdout';
+        const light = c.createLinearGradient(0, 0, 0, 425);
+        light.addColorStop(0, cool ? 'rgba(83,142,190,.16)' : 'rgba(248,181,79,.14)');
+        light.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = light; c.fillRect(0, 0, 1600, 425);
+      }
+      if (missionId === 'siege') {
+        for (let i = 0; i < 9; i++) {
+          const age = (this.clock * 0.07 + i / 9) % 1;
+          const x = 1110 + seeded(i + 220) * 370 - age * 105;
+          const y = 410 - age * 255;
+          c.globalAlpha = Math.sin(age * Math.PI) * 0.09;
+          ellipse(c, x, y, 24 + age * 42, 14 + age * 30, '#6b6252');
+        }
+      }
+      if (missionId === 'citadel') {
+        for (let i = 0; i < 22; i++) {
+          const age = (this.clock * 0.11 + seeded(i + 212)) % 1;
+          const x = 1070 + seeded(i + 220) * 490 + Math.sin(this.clock + i) * 11;
+          const y = 494 - age * 310;
+          c.globalAlpha = Math.sin(age * Math.PI) * 0.6;
+          path(c, [[x,y-4],[x+3,y],[x,y+4],[x-3,y]], '#b5f9ff');
+        }
+      }
+      c.restore();
+    }
+
+    _outpost(outpost) {
+      if (!outpost) return;
+      const c = this.ctx, x = Number.isFinite(outpost.x) ? outpost.x : 800;
+      const owner = outpost.owner || 'neutral';
+      const color = owner === 'player' ? '#77cae9' : owner === 'enemy' ? '#ed8a66' : '#dec28a';
+      const progress = clamp(Number(outpost.progress) || 0, -1, 1);
+      c.save(); c.translate(x, WORLD.ground);
+      c.save(); c.globalAlpha = 0.55;
+      ellipse(c, 0, 4, 72, 13, 'rgba(40,31,20,.2)', color);
+      c.lineWidth = 2.5;
+      c.beginPath(); c.ellipse(0, 4, 64, 10, 0, -Math.PI / 2, -Math.PI / 2 + Math.abs(progress) * TAU);
+      c.strokeStyle = progress < 0 ? '#ed8a66' : '#77cae9'; c.stroke(); c.restore();
+      const aspect = this.scaleY / this.scaleX;
+      const size = Math.min(1, 1.28 / Math.max(1, aspect));
+      c.scale(aspect * size, size);
+      // The flag sits behind the battle line; crates stay below the troops' shoulders.
+      line(c, 0, -8, 0, -125, '#594630', 5);
+      line(c, -1, -8, -1, -125, '#ddbd79', 1.5);
+      ellipse(c, 0, -128, 4, 4, '#f2d99b', '#735530');
+      const wave = Math.sin(this.clock * 3.4) * 4;
+      path(c, [[2,-120],[45,-115+wave],[40,-79+wave],[2,-86]], color, '#6b5131', 2);
+      path(c, [[16,-110+wave*.4],[29,-109+wave*.4],[29,-98+wave*.4],[22,-92+wave*.4],[16,-98+wave*.4]], '#f6e5b8', '#766243', 1);
+      for (const crate of [{x:-37,y:-27,w:26,h:24},{x:13,y:-22,w:32,h:19},{x:-31,y:-42,w:21,h:15}]) {
+        roundRect(c, crate.x, crate.y, crate.w, crate.h, 2, '#967248', '#493b29');
+        line(c, crate.x + 3, crate.y + 3, crate.x + crate.w - 3, crate.y + crate.h - 3, '#c2a16b', 2);
+        line(c, crate.x + crate.w - 3, crate.y + 3, crate.x + 3, crate.y + crate.h - 3, '#c2a16b', 2);
+        line(c, crate.x + 5, crate.y, crate.x + 5, crate.y + crate.h, '#58482f', 2);
+      }
+      roundRect(c, -43, -159, 86, 22, 5, 'rgba(36,31,25,.88)', '#ba9960');
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 13px "Microsoft YaHei", sans-serif';
+      c.fillStyle = '#f6e5bf'; c.fillText(outpost.contested ? '交战中' : owner === 'neutral' ? '补给据点' : owner === 'player' ? '我方补给' : '敌方补给', 0, -148);
+      roundRect(c, -29, -135, 58, 4, 2, '#3d372b');
+      if (Math.abs(progress) > 0.01) roundRect(c, -28, -134, 56 * Math.abs(progress), 2, 1, progress < 0 ? '#ed8a66' : '#77cae9');
+      if (outpost.contested) {
+        for (let i = 0; i < 5; i++) {
+          const angle = this.clock * 2.5 + i * TAU / 5;
+          const sx = Math.cos(angle) * 49, sy = -12 + Math.sin(angle) * 8;
+          line(c, sx - 3, sy - 6, sx + 3, sy + 1, '#ffe3a4', 2);
+        }
+      }
+      c.restore();
     }
 
     _birds() {
@@ -414,16 +495,31 @@
       path(c,[[-4,5],[-3,-5],[1,-12-Math.sin(t+1)*5],[5,-1],[3,5]],'#ffda70');c.restore();
     }
 
-    _drawUnit(u) {
+    _drawUnit(u, state) {
       const c=this.ctx, v=this.unitVisuals.get(u.id)||{move:0,attack:0,hit:0,phase:0};
-      const direction=u.side==='player'?1:-1, heavy=u.kind===2;
+      const direction=u.facing === -1 || u.facing === 1 ? u.facing : u.side==='player'?1:-1, heavy=u.kind===2;
       const dead=u.dead?clamp((u.anim||0)/.65,0,1):0;
       const stride=Math.sin((u.anim||this.clock)*10+v.phase);
       const bob=v.move*Math.abs(stride)*(heavy?2:3.2);
       const lunge=v.attack*Math.sin(v.attack*Math.PI)*12;
       const footY=(u.y||510)+((u.id%3)-1)*3;
+      const aspect = this.scaleY / this.scaleX;
+      // Tall mobile canvases retain sprite proportions without making every soldier a giant.
+      const mobileSize = Math.min(1, Math.sqrt(1.15 / Math.max(1, aspect)));
+      const unitSize = mobileSize * (u.boss ? 1.16 : u.elite ? 1.06 : 1);
+      const rally = !!(state && state.buffs && state.buffs.rally > 0 && u.side === 'player' && !u.dead);
       c.save();c.globalAlpha=1-dead;
-      c.translate(u.x, footY);c.scale(this.scaleY / this.scaleX, 1);c.translate(-u.x, -footY);
+      c.translate(u.x, footY);c.scale(aspect * unitSize, unitSize);c.translate(-u.x, -footY);
+      if (rally || u.elite || u.boss) {
+        c.save();
+        const aura = c.createRadialGradient(u.x, footY-43, 5, u.x, footY-43, 69);
+        const glow = rally ? 'rgba(255,153,56,.23)' : 'rgba(252,207,91,.19)';
+        aura.addColorStop(0, glow); aura.addColorStop(1, 'rgba(255,190,71,0)');
+        c.fillStyle = aura; c.fillRect(u.x-72, footY-115, 144, 140);
+        c.globalAlpha *= .65 + Math.sin(this.clock*4 + u.id)*.15;
+        ellipse(c, u.x, footY+1, heavy?45:28, heavy?10:7, null, rally?'#ffc16d':'#f4d47e');
+        c.restore();
+      }
       ellipse(c,u.x,footY+2,heavy?42:24,heavy?9:6,'rgba(13,17,12,.32)');
       c.save();c.globalAlpha*=.65;
       c.strokeStyle=u.side==='player'?'#79b8cc':'#dc8064';c.lineWidth=1.5;
@@ -434,7 +530,7 @@
       const height=heavy?(u.era>=3?116:119):(u.kind===1?93:101);
       if(asset&&asset.loaded){
         const w=height*asset.img.width/asset.img.height;
-        c.save();c.shadowColor='rgba(18,17,14,.38)';c.shadowBlur=3;c.shadowOffsetY=2;
+        c.save();c.shadowColor=u.elite||u.boss?'#ffd76a':rally?'#ffb65b':'rgba(18,17,14,.38)';c.shadowBlur=u.elite||u.boss?9:rally?7:3;c.shadowOffsetY=2;
         c.drawImage(asset.img,-w/2,-height,w,height);c.restore();
         if(v.hit>.05){c.save();c.globalAlpha*=v.hit*.24;c.globalCompositeOperation='lighter';c.drawImage(asset.img,-w/2,-height,w,height);c.restore();}
       }else this._fallbackUnit(c,u,v,stride,height);
@@ -450,6 +546,15 @@
         // Tiny coloured pennant marks remain readable when troops overlap.
         path(c,[[u.x-28,y-1],[u.x-24,y+2.5],[u.x-28,y+6],[u.x-32,y+2.5]],u.side==='player'?'#71c0d7':'#e47759','#493825',1);
         c.restore();
+        if (u.boss) {
+          c.save(); c.textAlign='center'; c.textBaseline='middle';
+          roundRect(c,u.x-43,y-25,86,20,4,'rgba(48,28,27,.94)','#e7be68');
+          path(c,[[u.x-45,y-19],[u.x-40,y-15],[u.x-45,y-11],[u.x-50,y-15]],'#f4d582','#785334',1);
+          c.fillStyle='#ffe6ab'; c.font='bold 12px "Microsoft YaHei", sans-serif';
+          c.fillText(String(u.name||'敌军统帅').slice(0,8),u.x,y-15);c.restore();
+        } else if (u.elite) {
+          path(c,[[u.x-9,y-9],[u.x-11,y-17],[u.x-4,y-13],[u.x,y-20],[u.x+4,y-13],[u.x+11,y-17],[u.x+9,y-9]],'#ffe18f','#9a7137',1);
+        }
       }
       c.restore();
     }
@@ -590,6 +695,21 @@
         c.globalAlpha=life;c.textAlign='center';c.font='bold 22px "STKaiti", "KaiTi", serif';c.lineWidth=4;c.strokeStyle='#53381e';c.strokeText(fx.text||'',fx.x,345-t*35);c.fillStyle='#fff0be';c.fillText(fx.text||'',fx.x,345-t*35);
       }else if(fx.type==='repair'){
         c.globalAlpha=life;c.fillStyle='#d7ffc2';c.font='bold 26px Georgia';c.textAlign='center';c.shadowColor='#58a971';c.shadowBlur=12;c.fillText(fx.text||'+',fx.x,fx.y-t*45);
+      }else if(fx.type==='heal'){
+        const x=fx.x, y=(fx.y||461)-t*34;
+        c.globalAlpha=life;c.shadowColor='#8ef3a7';c.shadowBlur=8;
+        roundRect(c,x-3,y-11,6,22,1,'#caffd4');roundRect(c,x-11,y-3,22,6,1,'#caffd4');
+        c.globalAlpha=life*.55;c.strokeStyle='#bcf8c7';c.lineWidth=2;
+        c.beginPath();c.ellipse(x,505,15+t*29,5+t*7,0,0,TAU);c.stroke();
+      }else if(fx.type==='rally'||fx.type==='upgrade'||fx.type==='capture'||fx.type==='outpost'){
+        const x=Number.isFinite(fx.x)?fx.x:fx.type==='upgrade'?125:800;
+        const color=fx.type==='rally'?'#ffd091':fx.side==='enemy'?'#ffa685':fx.type==='upgrade'?'#ffe8a6':'#adeaff';
+        c.globalAlpha=life;c.strokeStyle=color;c.lineWidth=3*life;
+        c.beginPath();c.ellipse(x,505,25+t*90,8+t*21,0,0,TAU);c.stroke();
+        c.fillStyle=color;c.textAlign='center';c.font='bold 19px "Microsoft YaHei", sans-serif';
+        c.shadowColor='#3c2c1b';c.shadowBlur=4;
+        const label=fx.text||(fx.type==='rally'?'战意鼓舞':fx.type==='upgrade'?'军备升级':'据点易主');
+        c.fillText(label,x,(fx.y||392)-t*30);
       }else if(fx.type==='hit'){
         c.translate(fx.x,fx.y);c.globalAlpha=life;c.globalCompositeOperation='lighter';c.strokeStyle=fx.color||'#ffe4ae';c.lineWidth=2;
         for(let i=0;i<6;i++){const a=i*TAU/6;line(c,Math.cos(a)*6,Math.sin(a)*6,Math.cos(a)*(9+t*16),Math.sin(a)*(9+t*16),fx.color||'#ffe4ae',2);}
