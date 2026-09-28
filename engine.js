@@ -11,6 +11,11 @@
   var MAX_PER_SIDE = 24;
   var MAX_PROJECTILES = 100;
   var MAX_EFFECTS = 100;
+  var BOUNTY = { window: 10, tiers: [
+    { kills: 3, gold: 20, name: '三连击破' },
+    { kills: 6, gold: 40, name: '战线压制' },
+    { kills: 10, gold: 70, name: '势不可挡' }
+  ] };
 
   var MISSIONS = [
     { id: 'classic', name: '无尽进化', subtitle: '经典战争', description: '从石器时代一路征战至未来，摧毁敌方基地。', objectiveText: '摧毁敌方基地', icon: '∞', startEra: 0, prerequisites: [], target: 1, parTime: 420, type: 'destroy' },
@@ -108,6 +113,7 @@
       stats: { kills: 0, deployed: 0, goldEarned: 0, eliteKills: 0, outpostSeconds: 0 },
       upgrades: { weapons: 0, armor: 0, economy: 0 },
       tactics: { choices: [], nextOffer: 12, offers: 0, selected: 0, buffs: { training: 0, barrier: 0, jammer: 0 } },
+      bounty: { chain: 0, remaining: 0, best: 0, totalGold: 0, claims: 0 },
       objective: { type: mission.type, progress: 0, target: mission.target, label: mission.objectiveText },
       outpost: { x: 800, progress: 0, owner: 'neutral', held: 0, contested: false },
       wave: { number: 1, remaining: 38, nextElite: mission.id !== 'classic', pending: 0 },
@@ -221,6 +227,26 @@
     t.choices = [TACTICS[offset].id, TACTICS[(offset + 1) % TACTICS.length].id, TACTICS[(offset + 3) % TACTICS.length].id];
     t.offers++;
     this._eventsPush('tacticOffer', '战术补给已抵达，从三张卡中选择一张！', 'player');
+  };
+
+  Engine.prototype._stepBounty = function (dt) {
+    var bounty = this.state.bounty;
+    bounty.remaining = Math.max(0, bounty.remaining - dt);
+    if (bounty.remaining < 1e-8) { bounty.remaining = 0; bounty.chain = 0; }
+  };
+
+  Engine.prototype._awardBounty = function (unit) {
+    var bounty = this.state.bounty;
+    bounty.chain = bounty.remaining > 0 ? bounty.chain + 1 : 1;
+    bounty.remaining = BOUNTY.window;
+    bounty.best = Math.max(bounty.best, bounty.chain);
+    var tier = BOUNTY.tiers.find(function (t) { return t.kills === bounty.chain; });
+    if (!tier) return;
+    var reward = tier.gold + this.state.era * 5;
+    bounty.totalGold += reward; bounty.claims++;
+    this.state.gold += reward; this.state.stats.goldEarned += reward;
+    this._effect('reward', unit.x, GROUND_Y - 115, 1.5, '#f8db74', tier.name + ' +' + reward);
+    this._eventsPush('bounty', tier.name + '！' + bounty.chain + ' 连杀，赏金 +' + reward, 'player');
   };
 
   Engine.prototype.rally = function () {
@@ -405,6 +431,7 @@
           this.state.stats.kills++; this.state.xp += xp; this.state.gold += reward; this.state.stats.goldEarned += reward;
           this._effect('reward', unit.x, GROUND_Y - 70, 0.9, '#f8db74', '+' + reward);
           this._eventsPush('kill', '+' + reward + ' 金币，+' + xp + ' XP', 'player');
+          this._awardBounty(unit);
         }
       }
     }
@@ -668,7 +695,7 @@
     this.state.cooldowns.rally = Math.max(0, this.state.cooldowns.rally - dt);
     this.state.cooldowns.heal = Math.max(0, this.state.cooldowns.heal - dt);
     this.state.buffs.rally = Math.max(0, this.state.buffs.rally - dt);
-    this._passive(dt); this._stepTactics(dt); this._enemyThink(dt); this._train(dt); this._moveUnits(dt); this._stepProjectiles(dt);
+    this._passive(dt); this._stepTactics(dt); this._stepBounty(dt); this._enemyThink(dt); this._train(dt); this._moveUnits(dt); this._stepProjectiles(dt);
     this.state.wave.remaining = Math.max(0, this.state.nextEnemyWave - this.state.time);
     this._turretFire('player', dt); this._turretFire('enemy', dt); this._stepOutpost(dt); this._cleanup(dt); this._finish();
   };
@@ -731,6 +758,13 @@
         clean.tactics.buffs.training = num(tactics.buffs && tactics.buffs.training, 0, 0, 12);
         clean.tactics.buffs.barrier = num(tactics.buffs && tactics.buffs.barrier, 0, 0, 15);
         clean.tactics.buffs.jammer = num(tactics.buffs && tactics.buffs.jammer, 0, 0, 10);
+        var bounty = s.bounty || {};
+        clean.bounty.remaining = num(bounty.remaining, 0, 0, BOUNTY.window);
+        clean.bounty.chain = clean.bounty.remaining > 0 ? Math.floor(num(bounty.chain, 0, 0, 1000000)) : 0;
+        if (!clean.bounty.chain) clean.bounty.remaining = 0;
+        clean.bounty.best = Math.max(clean.bounty.chain, Math.floor(num(bounty.best, 0, 0, 1000000)));
+        clean.bounty.totalGold = num(bounty.totalGold, 0, 0, 99999999);
+        clean.bounty.claims = Math.floor(num(bounty.claims, 0, 0, 1000000));
       }
       var sides = ['player', 'enemy'];
       for (var i = 0; i < sides.length; i++) {
@@ -787,5 +821,5 @@
   };
 
   Engine.WORLD_WIDTH = WORLD_WIDTH; Engine.GROUND_Y = GROUND_Y; Engine.DT = DT; Engine.MAX_PER_SIDE = MAX_PER_SIDE; Engine.SAVE_VERSION = VERSION;
-  return { ERAS: ERAS, MISSIONS: MISSIONS, DOCTRINES: DOCTRINES, UPGRADES: UPGRADES, TACTICS: TACTICS, Engine: Engine };
+  return { ERAS: ERAS, MISSIONS: MISSIONS, DOCTRINES: DOCTRINES, UPGRADES: UPGRADES, TACTICS: TACTICS, BOUNTY: BOUNTY, Engine: Engine };
 });

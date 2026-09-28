@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="expedition.css">
 <link rel="stylesheet" href="field-guide.css">
 <link rel="stylesheet" href="modern.css">
+<link rel="stylesheet" href="bounty.css">
+<link rel="stylesheet" href="career.css">
 </head>
 <body>
 <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -44,6 +46,11 @@
 <nav class="era-ribbon" aria-label="时代进程" id="era-nodes"></nav>
 <div class="mission-bar"><div class="mission-identity"><span class="mission-badge">远征</span><div><strong id="mission-title">火种边境</strong><small id="objective-text">摧毁敌军基地</small></div></div><div class="mission-progress"><div><span id="objective-value">0%</span><small id="outpost-income">争夺中央补给站</small></div><div class="objective-track"><i id="objective-fill"></i></div></div><div class="wave-preview"><svg><use href="#i-flag"/></svg><div><strong id="wave-count">下一波援军</strong><small id="wave-time">集结中</small></div></div></div>
 <main>
+<section class="combat-bounty" id="combat-bounty" aria-label="连杀赏金">
+  <div class="bounty-title"><span class="bounty-mark" aria-hidden="true">↗</span><div><strong id="bounty-chain">连杀赏金</strong><small id="bounty-next">3 连杀 +20 金</small></div></div>
+  <div class="bounty-window"><span id="bounty-timer">连续击杀 · 3 / 6 / 10 连杀领赏</span><div class="bounty-track" id="bounty-track" role="progressbar" aria-label="连杀剩余时间" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><i id="bounty-fill"></i></div></div>
+  <span class="bounty-record" id="bounty-record">最高 0 连杀 · 已领 0 金</span>
+</section>
 <section class="battle-frame" id="battle-frame" aria-label="战场">
   <canvas id="battlefield" aria-label="两军交战的横向战场"></canvas>
   <div class="battle-hud">
@@ -102,6 +109,7 @@
 <script src="renderer.js"></script>
 <script src="audio.js"></script>
 <script src="campaign.js"></script>
+<script src="career.js"></script>
 <script src="game.js"></script>
 <script src="field-guide.js"></script>
 </body>

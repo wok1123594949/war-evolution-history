@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const { ERAS, Engine, MISSIONS, DOCTRINES, UPGRADES, TACTICS } = window.WarEngine;
+  const { ERAS, Engine, MISSIONS, DOCTRINES, UPGRADES, TACTICS, BOUNTY } = window.WarEngine;
   const Campaign = window.CampaignProgress;
   const $ = id => document.getElementById(id);
   const icons = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -185,16 +185,27 @@
     $('pause-btn').title = s.status === 'paused' ? '继续战斗（空格）' : '暂停（空格）';
     hidden('battle-banner', s.status !== 'paused' || !$('start-overlay').hidden || !$('help-overlay').hidden);
     text('battle-status', s.status === 'paused' ? '战斗已暂停' : s.status === 'won' ? '战役目标完成' : s.status === 'lost' ? '基地已失守' : '黎明军团 · 推进战线');
-    $('battle-tip').style.opacity = s.time > 25 ? '0' : '1'; renderQueue(); updateStrategy(running);
+    $('battle-tip').style.opacity = s.time > 25 ? '0' : '1'; renderQueue(); updateStrategy(running); updateBounty(s);
+  }
+  function updateBounty(s) {
+    const bounty = s.bounty, next = BOUNTY.tiers.find(tier => tier.kills > bounty.chain);
+    const active = bounty.chain > 0;
+    $('combat-bounty').classList.toggle('active', active);
+    text('bounty-chain', active ? `${bounty.chain} 连杀` : '连杀赏金');
+    text('bounty-next', next ? `${next.kills} 连杀 +${next.gold + s.era * 5} 金` : '全部赏金已领取 · 挑战纪录');
+    text('bounty-timer', active ? `${bounty.remaining.toFixed(1)}s 内击杀续连` : '连续击杀 · 3 / 6 / 10 连杀领赏');
+    text('bounty-record', `最高 ${bounty.best} 连杀 · 已领 ${bounty.totalGold} 金`);
+    $('bounty-fill').style.width = `${100 * bounty.remaining / BOUNTY.window}%`;
+    $('bounty-track').setAttribute('aria-valuenow', bounty.remaining.toFixed(1));
   }
   function handleEvents() {
     const events = engine.drainEvents(); renderer?.handleEvents?.(events);
     let tacticOffered = false;
     for (const ev of events) {
       if (!['kill', 'spawn'].includes(ev.type) || ev.side === 'player') text('latest-event', `${fmt(engine.state.time)}　${ev.text}`);
-      if (['evolve', 'enemyEvolve', 'turret', 'repair', 'saveError', 'load', 'upgrade', 'rally', 'heal', 'outpost', 'boss', 'bossDefeated', 'wave', 'tacticOffer', 'tactic'].includes(ev.type)) notify(ev.text);
+      if (['evolve', 'enemyEvolve', 'turret', 'repair', 'saveError', 'load', 'upgrade', 'rally', 'heal', 'outpost', 'boss', 'bossDefeated', 'wave', 'tacticOffer', 'tactic', 'bounty'].includes(ev.type)) notify(ev.text);
       if (['deploy', 'evolve', 'special', 'repair', 'turret'].includes(ev.type)) GameAudio.play(ev.type);
-      if (['upgrade', 'rally'].includes(ev.type)) GameAudio.play('evolve');
+      if (['upgrade', 'rally', 'bounty'].includes(ev.type)) GameAudio.play('evolve');
       if (ev.type === 'heal') GameAudio.play('repair');
       if (ev.type === 'kill') GameAudio.play('hit');
       if (ev.type === 'tacticOffer') tacticOffered = true;
@@ -263,6 +274,7 @@
     if (!started || resultShown || !['won', 'lost'].includes(engine.state.status)) return;
     save(); resultShown = true; setTargeting(false);
     const s = engine.state, m = mission(s.missionId), won = s.status === 'won';
+    window.WarCareer?.record({ runId, state: s });
     const healthy = s.bases.player.hp / s.bases.player.maxHp >= .5, fast = s.time <= m.parTime;
     const earned = won ? 1 + Number(healthy) + Number(fast) : 0;
     profile = Campaign.recordResult(profile, { missionId: s.missionId, status: s.status, runId, time: s.time, baseRatio: s.bases.player.hp / s.bases.player.maxHp });

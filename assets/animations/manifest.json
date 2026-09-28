@@ -1,0 +1,34 @@
+{
+  "model": "gpt-image-2",
+  "stream": true,
+  "completionEvent": "image_generation.completed",
+  "frameSize": [
+    256,
+    256
+  ],
+  "sheetSize": [
+    1024,
+    768
+  ],
+  "columns": 4,
+  "rows": [
+    "idle",
+    "walk",
+    "attack"
+  ],
+  "fps": {
+    "idle": 3,
+    "walk": 8,
+    "attack": 8.88888888888889
+  },
+  "anchor": [
+    128,
+    254
+  ],
+  "units": [
+    "e0-u0.png",
+    "e0-u1.png",
+    "e0-u2.png"
+  ],
+  "normalization": "Uniform scale per unit, feet aligned, alpha preserved; the slinger projectile was removed because combat already renders projectiles."
+}

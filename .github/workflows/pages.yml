@@ -27,10 +27,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test battle engine and campaign progress
+      - name: Test battle engine, campaign progress and career records
         run: |
           node tests/engine.test.cjs
           node tests/campaign.test.cjs
+          node tests/career.test.cjs
+          node tests/renderer.test.cjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

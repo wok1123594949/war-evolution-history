@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { ERAS, MISSIONS, DOCTRINES, UPGRADES, TACTICS, Engine } = require('../engine.js');
+const { ERAS, MISSIONS, DOCTRINES, UPGRADES, TACTICS, BOUNTY, Engine } = require('../engine.js');
 let checks = 0;
 function test(name, fn) { fn(); checks++; console.log('✓ ' + name); }
 function run(engine, seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) engine.step(1 / 60); }
@@ -409,6 +409,59 @@ test('tactical offer rotation covers all five cards without affecting combat ran
     }
     assert.equal(seen.size, 5); assert.equal(e.rngState, rng);
   }
+});
+
+test('kill chains award each bounty tier once and account for gold separately from ordinary kills', () => {
+  const e = new Engine({ seed: 18 }); noAI(e); e.drainEvents();
+  const before = e.state.gold, regularReward = Math.round(ERAS[0].units[0].cost * 0.6);
+  for (let i = 0; i < 12; i++) {
+    const target = unit(e, 'enemy', 0, 0, 900);
+    e._damageUnit(target, 9999, 'player'); e._damageUnit(target, 9999, 'player');
+  }
+  assert.equal(e.state.bounty.chain, 12); assert.equal(e.state.bounty.best, 12);
+  assert.equal(e.state.bounty.claims, 3); assert.equal(e.state.bounty.totalGold, 130);
+  assert.equal(e.state.gold - before, regularReward * 12 + 130);
+  assert.equal(e.state.stats.goldEarned, regularReward * 12 + 130);
+  assert.equal(e.drainEvents().filter(event => event.type === 'bounty').length, 3);
+});
+
+test('chain timer refreshes on a kill and expires without losing the best record or bounty', () => {
+  const e = new Engine({ seed: 19 }); noAI(e);
+  function kill() { e._damageUnit(unit(e, 'enemy', 0, 0, 900), 9999, 'player'); }
+  kill(); run(e, 9); kill(); assert.equal(e.state.bounty.chain, 2);
+  assert.equal(e.state.bounty.remaining, BOUNTY.window);
+  run(e, 9); kill(); assert.equal(e.state.bounty.chain, 3); assert.equal(e.state.bounty.totalGold, 20);
+  run(e, 10); assert.equal(e.state.bounty.chain, 0); assert.equal(e.state.bounty.remaining, 0);
+  assert.equal(e.state.bounty.best, 3); assert.equal(e.state.bounty.totalGold, 20);
+  for (let i = 0; i < 3; i++) kill();
+  assert.equal(e.state.bounty.chain, 3); assert.equal(e.state.bounty.totalGold, 40); assert.equal(e.state.bounty.claims, 2);
+});
+
+test('friendly deaths and uncredited enemy deaths do not advance a kill chain', () => {
+  const e = new Engine({ seed: 20 }); noAI(e);
+  e._damageUnit(unit(e, 'player', 0, 0, 700), 9999, 'enemy');
+  e._damageUnit(unit(e, 'enemy', 0, 0, 900), 9999, 'enemy');
+  assert.deepEqual(e.state.bounty, { chain: 0, remaining: 0, best: 0, totalGold: 0, claims: 0 });
+  e.state.era = 4;
+  for (let i = 0; i < 3; i++) e._damageUnit(unit(e, 'enemy', 0, 0, 900), 9999, 'player');
+  assert.equal(e.state.bounty.totalGold, 40);
+});
+
+test('bounties persist deterministically, freeze on pause and migrate missing or malformed saves', () => {
+  const a = new Engine({ seed: 21 }); noAI(a); a.state.enemyTimer = 100;
+  for (let i = 0; i < 3; i++) a._damageUnit(unit(a, 'enemy', 0, 0, 900), 9999, 'player');
+  run(a, 1); const b = Engine.fromSave(a.serialize());
+  assert.deepEqual(JSON.parse(a.serialize()), JSON.parse(b.serialize()));
+  a.togglePause(); const paused = a.serialize(); run(a, 15); assert.equal(a.serialize(), paused);
+  a.togglePause(); a.drainEvents(); b.drainEvents(); run(a, 12); run(b, 12);
+  assert.deepEqual(JSON.parse(a.serialize()), JSON.parse(b.serialize())); assert.deepEqual(a.drainEvents(), b.drainEvents());
+  const raw = JSON.parse(a.serialize()); delete raw.state.bounty;
+  const old = Engine.fromSave(raw); assert.deepEqual(old.state.bounty, { chain: 0, remaining: 0, best: 0, totalGold: 0, claims: 0 });
+  assert.ok(!old.drainEvents().some(event => event.type === 'saveError'));
+  raw.state.bounty = { chain: 1000001.5, remaining: 999, best: -5, totalGold: -99, claims: 'bad' };
+  assert.deepEqual(Engine.fromSave(raw).state.bounty, { chain: 1000000, remaining: 10, best: 1000000, totalGold: 0, claims: 0 });
+  raw.state.bounty = { chain: 4, remaining: 0, best: 6 };
+  assert.equal(Engine.fromSave(raw).state.bounty.chain, 0);
 });
 
 console.log(`\n${checks} engine tests passed`);

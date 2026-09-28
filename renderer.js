@@ -4,6 +4,8 @@
   const WORLD = { width: 1600, height: 640, ground: 510 };
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const UNIT_ANIMATION = { cell: 256, columns: 4, rows: 3, idleFps: 3, walkFps: 8, attackDuration: 0.45 };
+  const ANIMATION_ROWS = { idle: 0, walk: 1, attack: 2 };
   const PALETTES = [
     { body: '#9a6240', light: '#ceaa75', dark: '#4b3529', glow: '#ec9d38' },
     { body: '#8a9295', light: '#c1c6b6', dark: '#39474a', glow: '#ddac52' },
@@ -41,7 +43,7 @@
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d', { alpha: false });
       this.clock = 0;
-      this.previousTime = 0;
+      this.previousTime = null;
       this.particles = [];
       this.unitVisuals = new Map();
       this.seenEffects = new WeakSet();
@@ -54,16 +56,25 @@
         this._load('base' + e, 'assets/bases/e' + e + '.png');
         for (let u = 0; u < 3; u++) this._load('unit' + e + '-' + u, 'assets/units/e' + e + '-u' + u + '.png');
       }
+      // Only these three units have authored sprite sheets. Other eras use their existing art.
+      for (let u = 0; u < 3; u++) this._load('animation0-' + u, 'assets/animations/e0-u' + u + '.png', {
+        width: UNIT_ANIMATION.cell * UNIT_ANIMATION.columns,
+        height: UNIT_ANIMATION.cell * UNIT_ANIMATION.rows,
+        optional: true
+      });
       this.resize();
       this.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.resize()) : null;
       if (this.resizeObserver) this.resizeObserver.observe(canvas);
     }
 
-    _load(key, url) {
+    _load(key, url, expected) {
       const img = new Image();
-      const asset = { img, url, loaded: false, failed: false, attempts: 1 };
-      img.onload = () => { asset.loaded = true; asset.failed = false; };
-      img.onerror = () => { asset.failed = true; };
+      const asset = { img, url, loaded: false, failed: false, attempts: 1, optional: !!expected?.optional };
+      img.onload = () => {
+        const valid = !expected || (img.naturalWidth || img.width) === expected.width && (img.naturalHeight || img.height) === expected.height;
+        asset.loaded = valid; asset.failed = !valid;
+      };
+      img.onerror = () => { asset.loaded = false; asset.failed = true; };
       img.src = url;
       this.assets.set(key, asset);
     }
@@ -132,18 +143,20 @@
         deltaSeconds = this._lastRenderArg > 0 ? stamp - this._lastRenderArg : 0.016;
         this._lastRenderArg = stamp;
       } else this._lastRenderArg = 0;
-      if (Number(state.time) < this.previousTime - 0.1) {
+      const simulationTime = Number.isFinite(state.time) ? state.time : 0;
+      const reset = this.previousTime !== null && simulationTime < this.previousTime - 1e-8;
+      if (reset) {
         this.unitVisuals.clear(); this.particles.length = 0; this.seenEffects = new WeakSet(); this.shake = 0;
       }
       options = options || this.targetOptions || {};
       const dt = clamp(Number(deltaSeconds) || 0, 0, 0.1);
       this.clock += dt;
-      const running = state.status === 'playing';
-      const motionDt = running ? dt * (state.speed || 1) : 0;
+      // Animation follows actual simulation progress, including paused menus and speed changes.
+      const motionDt = this.previousTime === null || reset ? 0 : Math.max(0, simulationTime - this.previousTime);
       if (this.clock - this.lastAssetRetry > 35) {
         this.lastAssetRetry = this.clock;
         for (const a of this.assets.values()) {
-          if (a.failed && a.attempts < 14) { a.failed = false; a.attempts++; a.img.src = a.url + '?attempt=' + a.attempts; }
+          if (a.failed && !a.optional && a.attempts < 14) { a.failed = false; a.attempts++; a.img.src = a.url + '?attempt=' + a.attempts; }
         }
       }
       this._updateVisuals(state, motionDt);
@@ -171,7 +184,7 @@
       const edge = c.createLinearGradient(0, 0, 0, 100);
       edge.addColorStop(0, 'rgba(28, 19, 13, 0.3)'); edge.addColorStop(1, 'rgba(28, 19, 13, 0)');
       c.fillStyle = edge; c.fillRect(0, 0, 1600, 100);
-      this.previousTime = state.time;
+      this.previousTime = simulationTime;
     }
 
     _updateVisuals(state, dt) {
@@ -179,11 +192,17 @@
       for (const u of state.units || []) {
         active.add(u.id);
         let v = this.unitVisuals.get(u.id);
-        if (!v) { v = { x: u.x, hp: u.hp, timer: u.attackTimer || 0, flash: 0, move: 0, attack: 0, hit: 0, dust: Math.random(), phase: seeded(u.id) * TAU }; this.unitVisuals.set(u.id, v); }
+        const fresh = !v;
+        if (!v) {
+          v = { x: u.x, hp: u.hp, timer: u.attackTimer || 0, flash: u.attackFlash || 0, move: 0, attack: 0, hit: 0, dust: Math.random(), phase: seeded(u.id) * TAU,
+            action: !u.dead && u.attackFlash > 0 ? 'attack' : u.moving ? 'walk' : 'idle', actionTime: 0 };
+          this.unitVisuals.set(u.id, v);
+        }
         if (dt > 0) {
           const moving = typeof u.moving === 'boolean' ? u.moving : Math.abs(u.x - v.x) > 0.02;
           v.move += ((moving ? 1 : 0) - v.move) * Math.min(1, dt * 12);
-          const attacked = typeof u.attackFlash === 'number' ? u.attackFlash > v.flash + 0.025 : (u.attackTimer || 0) > v.timer + 0.1;
+          const attacked = !fresh && (u.attackFlash > v.flash + 0.025 || (u.attackTimer || 0) > v.timer + 0.1);
+          this._advanceAnimation(v, u, moving, attacked, fresh ? 0 : dt);
           if (attacked && !u.dead) {
             v.attack = 1;
             if (u.kind === 1 || u.kind === 2 && u.era >= 2) this._burst(u.x + (u.side === 'player' ? 34 : -34), 454, u.era === 4 ? '#91faff' : '#ffce6c', 5, 70);
@@ -216,6 +235,31 @@
         if (p.life <= 0) { this.particles.splice(i, 1); continue; }
         p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(0.2, dt); p.vy += (p.rise ? -30 : 140) * dt;
       }
+    }
+
+    _advanceAnimation(v, unit, moving, attacked, dt) {
+      if (unit.dead) return;
+      if (attacked) { v.action = 'attack'; v.actionTime = 0; return; }
+      v.actionTime += dt;
+      // Attack frames run to completion even after the engine's short hit flash expires.
+      if (v.action === 'attack' && v.actionTime < UNIT_ANIMATION.attackDuration - 1e-8) return;
+      const next = moving ? 'walk' : 'idle';
+      if (v.action !== next) { v.action = next; v.actionTime = 0; }
+    }
+
+    _animationAsset(unit) {
+      if (unit.era !== 0 || !Number.isInteger(unit.kind) || unit.kind < 0 || unit.kind > 2) return null;
+      const asset = this.assets.get('animation0-' + unit.kind);
+      return asset?.loaded && !asset.failed ? asset : null;
+    }
+
+    _animationFrame(visual) {
+      const action = ANIMATION_ROWS[visual.action] === undefined ? 'idle' : visual.action;
+      const elapsed = Math.max(0, visual.actionTime || 0);
+      const frame = action === 'attack'
+        ? Math.min(UNIT_ANIMATION.columns - 1, Math.floor(elapsed / UNIT_ANIMATION.attackDuration * UNIT_ANIMATION.columns + 1e-8))
+        : Math.floor(elapsed * (action === 'walk' ? UNIT_ANIMATION.walkFps : UNIT_ANIMATION.idleFps) + 1e-8) % UNIT_ANIMATION.columns;
+      return { x: frame * UNIT_ANIMATION.cell, y: ANIMATION_ROWS[action] * UNIT_ANIMATION.cell, size: UNIT_ANIMATION.cell };
     }
 
     _background(state) {
@@ -497,11 +541,12 @@
 
     _drawUnit(u, state) {
       const c=this.ctx, v=this.unitVisuals.get(u.id)||{move:0,attack:0,hit:0,phase:0};
+      const animation=this._animationAsset(u);
       const direction=u.facing === -1 || u.facing === 1 ? u.facing : u.side==='player'?1:-1, heavy=u.kind===2;
       const dead=u.dead?clamp((u.anim||0)/.65,0,1):0;
       const stride=Math.sin((u.anim||this.clock)*10+v.phase);
-      const bob=v.move*Math.abs(stride)*(heavy?2:3.2);
-      const lunge=v.attack*Math.sin(v.attack*Math.PI)*12;
+      const bob=animation?0:v.move*Math.abs(stride)*(heavy?2:3.2);
+      const lunge=animation?0:v.attack*Math.sin(v.attack*Math.PI)*12;
       const footY=(u.y||510)+((u.id%3)-1)*3;
       const aspect = this.scaleY / this.scaleX;
       // Tall mobile canvases retain sprite proportions without making every soldier a giant.
@@ -525,14 +570,19 @@
       c.strokeStyle=u.side==='player'?'#79b8cc':'#dc8064';c.lineWidth=1.5;
       c.beginPath();c.ellipse(u.x,footY+2,heavy?39:22,heavy?8:5,0,0,TAU);c.stroke();c.restore();
       c.save();c.translate(u.x+direction*lunge,footY-bob+dead*14);c.scale(direction,1);
-      c.rotate(v.move*stride*.025+v.attack*.06+dead*1.18);
+      c.rotate((animation?0:v.move*stride*.025+v.attack*.06)+dead*1.18);
       const asset=this.assets.get('unit'+u.era+'-'+u.kind);
       const height=heavy?(u.era>=3?116:119):(u.kind===1?93:101);
-      if(asset&&asset.loaded){
-        const w=height*asset.img.width/asset.img.height;
+      if(animation||asset&&asset.loaded){
+        const frame=animation?this._animationFrame(v):null;
+        const w=animation?height:height*asset.img.width/asset.img.height;
+        const drawSprite=()=>{
+          if(animation)c.drawImage(animation.img,frame.x,frame.y,frame.size,frame.size,-w/2,-height,w,height);
+          else c.drawImage(asset.img,-w/2,-height,w,height);
+        };
         c.save();c.shadowColor=u.elite||u.boss?'#ffd76a':rally?'#ffb65b':'rgba(18,17,14,.38)';c.shadowBlur=u.elite||u.boss?9:rally?7:3;c.shadowOffsetY=2;
-        c.drawImage(asset.img,-w/2,-height,w,height);c.restore();
-        if(v.hit>.05){c.save();c.globalAlpha*=v.hit*.24;c.globalCompositeOperation='lighter';c.drawImage(asset.img,-w/2,-height,w,height);c.restore();}
+        drawSprite();c.restore();
+        if(v.hit>.05){c.save();c.globalAlpha*=v.hit*.24;c.globalCompositeOperation='lighter';drawSprite();c.restore();}
       }else this._fallbackUnit(c,u,v,stride,height);
       if(v.attack>.6&&u.kind===1&&u.era>=2)this._muzzle(c,36,-51,u.era===4);
       c.restore();
